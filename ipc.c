@@ -51,11 +51,11 @@ int main(int argc, char **argv) {
 
     InputOutput io;
     io.procCount = proc_count;
-    io.fds = (int ***) calloc((proc_count + 1), sizeof(int));
+    io.fds = (int ***) calloc((proc_count + 1), sizeof(int**));
 
     FILE *pipes_logfile = fopen(pipes_log, "a+");
     for (int i = 0; i <= proc_count + 1; ++i) {
-        io.fds[i] = (int **) calloc((proc_count + 1), sizeof(int));
+        io.fds[i] = (int **) calloc((proc_count + 1), sizeof(int*));
         for (int j = 0; j <= proc_count + 1; ++j) {
             io.fds[i][j] = (int *) calloc(2, sizeof(int));
             pipe(io.fds[i][j]);
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 
             Message msg2;
             msg2.s_header = header;
-            sprintf(msg2.s_payload, log_started_fmt, i, getpid(), getppid());
+            sprintf(msg2.s_payload, log_done_fmt, i);
             send_multicast(&sio, &msg2);
 
             fprintf(logfile, log_done_fmt, i);
@@ -117,13 +117,13 @@ int send(void *self, local_id dst, const Message *msg) {
     SelfInputOutput *sio = (SelfInputOutput *) self;
     if (sio->self == dst) return -1;
 
-    write(sio->io.fds[sio->self][dst][1], msg, sizeof(*msg));
+    write(sio->io.fds[sio->self][dst][1], msg, sizeof msg->s_header + msg->s_header.s_payload_len);
     return 0;
 }
 
 int send_multicast(void *self, const Message *msg) {
     SelfInputOutput *sio = (SelfInputOutput *) self;
-    for (int i = 1; i <= sio->io.procCount; ++i) {
+    for (int i = 0; i <= sio->io.procCount; ++i) {
         if (i != sio->self)
             send(self, i, msg);
     }

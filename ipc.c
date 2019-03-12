@@ -79,11 +79,12 @@ int main(int argc, char **argv) {
             char startStr[MAX_PAYLOAD_LEN];
             sprintf(startStr, log_started_fmt, i, getpid(), getppid());
             MessageHeader header = {MESSAGE_MAGIC, sizeof(startStr), STARTED, 0}; //todo time instead of 0
-            Message msg;
-            msg.s_header = header;
+            Message *msg = (Message *) calloc(1, sizeof(Message));
+            msg->s_header = header;
+            strcpy(msg->s_payload, startStr);
             fflush(stdout);
 
-            send_multicast(&sio, &msg);
+            send_multicast(&sio, msg);
 
             Message msgs[proc_count + 1];
 //            printf("%s", startStr);
@@ -92,19 +93,23 @@ int main(int argc, char **argv) {
             fprintf(logfile, log_received_all_started_fmt, i);
             fflush(logfile);
 
-            fprintf(logfile, log_done_fmt, i);
-            sprintf(startStr, log_done_fmt, i);
             Message msg2;
             msg2.s_header = header;
-            strcpy(msg2.s_payload, startStr);
+            char endStr[MAX_PAYLOAD_LEN];
+            sprintf(endStr, log_started_fmt, i, getpid(), getppid());
+            strcpy(msg2.s_payload, endStr);
             send_multicast(&sio, &msg2);
             receive_all(&sio, msgs);
+
+            fprintf(logfile, log_done_fmt, i);
+            sprintf(startStr, log_done_fmt, i);
+
             fprintf(logfile, log_received_all_done_fmt, i);
 
             exit(0);
         } else {
 //            SelfInputOutput sio = {io, 0};
-//            Message *msgs[proc_count + 1];
+//            Message msgs[proc_count + 1];
 //            receive_all(&sio, msgs);
             usleep(100000);
         }

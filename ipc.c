@@ -19,7 +19,7 @@
 } __attribute__((packed)) MessageHeader;
  */
 
-int receive_all(void *self, Message **msgs);
+int receive_all(void *self, Message *msgs);
 
 typedef struct {
     int read;
@@ -81,12 +81,13 @@ int main(int argc, char **argv) {
             MessageHeader header = {MESSAGE_MAGIC, sizeof(startStr), STARTED, 0}; //todo time instead of 0
             Message msg;
             msg.s_header = header;
-//            printf("%s", startStr);
             fflush(stdout);
 
             send_multicast(&sio, &msg);
 
-            Message *msgs[proc_count + 1];
+            Message msgs[proc_count + 1];
+//            printf("%s", startStr);
+//            fflush(stdout);
             receive_all(&sio, msgs);
             fprintf(logfile, log_received_all_started_fmt, i);
             fflush(logfile);
@@ -102,9 +103,10 @@ int main(int argc, char **argv) {
 
             exit(0);
         } else {
-            SelfInputOutput sio = {io, 0};
-            Message *msgs[proc_count + 1];
-            receive_all(&sio, msgs);
+//            SelfInputOutput sio = {io, 0};
+//            Message *msgs[proc_count + 1];
+//            receive_all(&sio, msgs);
+            usleep(100000);
         }
     }
 }
@@ -148,11 +150,14 @@ int receive_any(void *self, Message *msg) {
     }
 }
 
-int receive_all(void *self, Message *msgs[]) {
+int receive_all(void *self, Message msgs[]) {
     SelfInputOutput *sio = (SelfInputOutput *) self;
     for (int i = 1; i <= sio->io.procCount; ++i) {
-        if (i != sio->self)
-            receive(self, i, msgs[i]);
+        if (i != sio->self) {
+            receive(self, i, &msgs[i]);
+            printf("%s", msgs[i].s_payload);
+            fflush(stdout);
+        }
     }
     return 0;
 }

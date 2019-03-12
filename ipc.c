@@ -76,15 +76,14 @@ int main(int argc, char **argv) {
             fprintf(logfile, log_started_fmt, i, getpid(), getppid());
             fflush(logfile);
 
-            char startStr[MAX_PAYLOAD_LEN];
-            sprintf(startStr, log_started_fmt, i, getpid(), getppid());
-            MessageHeader header = {MESSAGE_MAGIC, sizeof(startStr), STARTED, 0}; //todo time instead of 0
-            Message *msg = (Message *) calloc(1, sizeof(Message));
-            msg->s_header = header;
-            strcpy(msg->s_payload, startStr);
+//            char startStr[MAX_PAYLOAD_LEN];
+            Message msg;
+            sprintf(msg.s_payload, log_started_fmt, i, getpid(), getppid());
+            MessageHeader header = {MESSAGE_MAGIC, sizeof(msg.s_payload), STARTED, 0}; //todo time instead of 0
+            msg.s_header = header;
             fflush(stdout);
 
-            send_multicast(&sio, msg);
+            send_multicast(&sio, &msg);
 
             Message msgs[proc_count + 1];
 //            printf("%s", startStr);
@@ -95,15 +94,13 @@ int main(int argc, char **argv) {
 
             Message msg2;
             msg2.s_header = header;
-            char endStr[MAX_PAYLOAD_LEN];
-            sprintf(endStr, log_started_fmt, i, getpid(), getppid());
-            strcpy(msg2.s_payload, endStr);
+            sprintf(msg2.s_payload, log_started_fmt, i, getpid(), getppid());
             send_multicast(&sio, &msg2);
-            receive_all(&sio, msgs);
 
             fprintf(logfile, log_done_fmt, i);
-            sprintf(startStr, log_done_fmt, i);
+//            sprintf(startStr, log_done_fmt, i);
 
+            receive_all(&sio, msgs);
             fprintf(logfile, log_received_all_done_fmt, i);
 
             exit(0);
@@ -118,6 +115,8 @@ int main(int argc, char **argv) {
 
 int send(void *self, local_id dst, const Message *msg) {
     SelfInputOutput *sio = (SelfInputOutput *) self;
+    if (sio->self == dst) return -1;
+
     write(sio->io.fds[sio->self][dst][1], msg, sizeof(*msg));
     return 0;
 }
@@ -133,11 +132,12 @@ int send_multicast(void *self, const Message *msg) {
 
 int receive(void *self, local_id from, Message *msg) {
     SelfInputOutput *sio = (SelfInputOutput *) self;
+    char b[MAX_MESSAGE_LEN];
     while (1) {
-        if (read(sio->io.fds[from][sio->self][0], msg, sizeof(msg)) == -1) {
+        if (read(sio->io.fds[from][sio->self][0], b, sizeof(b)) < 0) {
             usleep(100);
         } else {
-            printf("%s    from %d\n", msg->s_payload, sio->self);
+            printf("%s    from %d\n", b, sio->self);
             fflush(stdout);
             return 0;
         }
@@ -148,7 +148,7 @@ int receive_any(void *self, Message *msg) {
     SelfInputOutput *sio = (SelfInputOutput *) self;
     while (1) {
         for (int i = 0; i <= sio->io.procCount; ++i) {
-            if (read(sio->io.fds[i][sio->self][0], msg, sizeof(msg)) > 0) {
+            if (read(sio->io.fds[i][sio->self][0], msg, sizeof msg) > 0) {
                 return 0;
             }
         }

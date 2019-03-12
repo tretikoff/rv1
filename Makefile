@@ -8,4 +8,5 @@ build:
 
 clean:
 	killall -9 a.out
+	rm -r *.log
 

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <string.h>
 
 /*
  * typedef struct {
@@ -48,7 +49,6 @@ int main(int argc, char **argv) {
 
     int pids[proc_count + 1];
 
-
     InputOutput io;
     io.procCount = proc_count;
     io.fds = (int ***) calloc((proc_count + 1), sizeof(int));
@@ -81,20 +81,21 @@ int main(int argc, char **argv) {
             MessageHeader header = {MESSAGE_MAGIC, sizeof(startStr), STARTED, 0}; //todo time instead of 0
             Message msg;
             msg.s_header = header;
-            strcpy(msg.s_payload, startStr);
 //            printf("%s", startStr);
             fflush(stdout);
 
             send_multicast(&sio, &msg);
 
             Message *msgs[proc_count + 1];
-            receive_all(&sio, &msgs);
+            receive_all(&sio, msgs);
             fprintf(logfile, log_received_all_started_fmt, i);
             fflush(logfile);
 
             fprintf(logfile, log_done_fmt, i);
             sprintf(startStr, log_done_fmt, i);
-            Message msg2 = {header, {startStr}};
+            Message msg2;
+            msg2.s_header = header;
+            strcpy(msg2.s_payload, startStr);
             send_multicast(&sio, &msg2);
             receive_all(&sio, msgs);
             fprintf(logfile, log_received_all_done_fmt, i);
@@ -103,7 +104,7 @@ int main(int argc, char **argv) {
         } else {
             SelfInputOutput sio = {io, 0};
             Message *msgs[proc_count + 1];
-            receive_all(&sio, &msgs);
+            receive_all(&sio, msgs);
         }
     }
 }
